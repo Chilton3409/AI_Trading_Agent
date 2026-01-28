@@ -20,7 +20,7 @@ class AITradingSystem():
         self.api_secret = os.environ.get("API_SECRET")
         self.client =  alpacabot.AlpacaBotLink(api_key=self.api_key, api_secret=self.api_secret, paper=True, access_token = os.environ.get("META_AI_TOKEN")) 
         self.hold_amount = Decimal('10.00') # amount of cash to hold back from buying power
-        self.take_profit_threshold = Decimal('10.00') #expressed as a percent
+        self.take_profit_threshold = Decimal('1.00') #expressed as a percent
         self.stop_loss_threshold = Decimal('20.00')#expressed as a percent
         self.average_up_threshold = Decimal('5.00')
         self.trade_amount = float('1')# amount of shares per trade, buying only
@@ -133,7 +133,7 @@ class AITradingSystem():
         retreive the meta ai api's top picks and filter the response
         to retrive a python list of tickers
         """
-        picks = await self.client.get_meta_ai_insights(meta_ai_text=f"based on the stocks you have reviewed, what are your top picks? Return a list of top picks in the format ['pick1', 'pick2', ...]. Only the list so I can use it in a function")
+        picks = await self.client.get_meta_ai_insights(meta_ai_text=f"based on the stocks you have reviewed, what are your top picks? Return a list of top picks in the format ['pick1', 'pick2', ...]. Only the list of tickers so I can use it in a function")
         tickers = re.findall(r"'(.*?)'", picks)
         
         print(tickers)
@@ -152,8 +152,8 @@ class AITradingSystem():
                         candles = await self.client.get_candles(ticker=mover.symbol)
                         print(candles)
                         analysis = await self.sentiment_analysis(news, candles)  
-                        print(analysis)
-            
+                        print(f"this is the sentiment analysis: {analysis} ")
+                        #add write to file functions here
         except Exception as e:
             logging.exception(msg=e)
             
@@ -170,7 +170,7 @@ class AITradingSystem():
                 
                 if buying_power >= self.hold_amount:
                 
-                    movers = await self.get_market_movers(top=50)
+                    movers = await self.get_market_movers()
                     market_surveillance = await self.market_surveillance(movers=movers)
                     
                 
@@ -254,7 +254,7 @@ class AITradingSystem():
             if pnl:
                 if pnl <= self.stop_loss_threshold:
                     #create sell order here
-                    await self.create_sell_order(ticker=ticker, qty=1)
+                    await self.create_sell_order(ticker=ticker, qty=0)
                     print(f"stop loss triggered on: {ticker}")
                 
                 
@@ -314,6 +314,8 @@ class AITradingSystem():
                     if daytrade_count < 3:
                         print(f"current daytrade count is: {daytrade_count}")
                         print(f' going to sell {pos.symbol}')
+                        print(pos.qty)
+                        print(pos.qty_available)
                         await self.create_sell_order(ticker=pos.symbol, qty=pos.qty_available)
                     else:
                         print(f"not enough daytrades available to sell: {pos.symbol}")
